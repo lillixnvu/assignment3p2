@@ -8,7 +8,6 @@ To get started, please ensure you meet the following requirements:
 	- [How to Create a Droplet](https://docs.digitalocean.com/products/droplets/how-to/create/)
 - **Operating System**: The latest version of Arch Linux with Bash.
 	- If not, please run the following commands:
-	- `sudo pacman -Syu`
 	- `sudo pacman -S archlinux-keyring && sudo pacman -Syu`
 - **Permissions**: Root access to execute the scripts.
 - **Directory**: All commands in this guide is run in the users home directory.
