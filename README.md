@@ -31,7 +31,7 @@ To get started, please ensure you meet the following requirements:
 **Output**:
 ![load balancer output](./images/loadbalancer-setup.png)
 
->[!NOTE:]
+>[!NOTE]
 >**So, what is a load balancer?** A load balancer is a system is used to distribute incoming network traffic across multiple servers (two or more) to ensure optimal resource usage, high availability, and improved performance. It prevents server overload, reroutes traffic is a server fails, and enhances application reliability.
 >
 
@@ -77,6 +77,7 @@ sudo touch /var/lib/webgen/documents/file1 /var/lib/webgen/documents/file2
 ```
 ---
 ## Setting up `.timer` and `.service` for `generate_index`
+
 1. Copy the files provided `generate_index.timer` and `generate_index.service` to `/etc/systemd/system`
 ```bash
 sudo cp /home/user/assignment3p2/generate_index.{service,timer} /etc/systemd/system
@@ -112,6 +113,53 @@ journalctl -u generate_index.timer
 # Manually start your service:
 sudo systemctl start generate_index.service
 ```
+### What does `generate_index.timer` do?
+The `.timer` file is used in relation with a `.service` file in `systemd` to schedule and trigger a specific service at a specific time. The whole purpose is to run the `generate_index.service` at a specified time.
+```bash
+[Unit]
+# Brief description of the timer's purpose
+Description=Run the gengerate_index.service at 05:00
+
+[Timer]
+# Specifies when the timer will trigger
+# *-*-* means "every year, every month, every day" 
+# 05:00:00 means it will run at 05:00AM in 24-hour format
+OnCalendar=*-*-* 05:00:00
+# Ensures the timer will "catch up" missed run if the system is powered off or the timer wasn't active when the schedule time passed.
+Persistent=true
+
+[Install]
+# Ensures the timer is started when the timer.target (systemd target that manages timers) is active
+WantedBy=timers.target
+```
+
+### What does `generate_index.service` do?
+The `generate_index.service` file runs a script to generate a website's `index.html` as the webgen user, ensuring that the network is fully initialized before execution.
+
+```bash
+[Unit]
+Description=Generate index for website
+# Ensures that the service starts only after the network is fully online
+After=network-online.target
+# Request that the network-online target is activated but doesn't fail if it's not available
+Wants=network-online.target
+
+[Service]
+# Specifies the specific user
+User=webgen
+# Specifies the specific group
+Group=webgen
+# Indicates that the service performs a single task and then exits
+Type=oneshot
+# Indicates where to run the script
+ExecStart=/var/lib/webgen/bin/generate_index
+# Configures the service to restart if it fails  
+Restart=on-failure
+
+[Install]
+# Specifies that the service should be activated when the system reaches the multi-user.target
+WantedBy=multi-user.target  
+```
 
 ---
 ## Setting Up `nginx`
@@ -125,25 +173,25 @@ sudo cp /home/user/assignment3p2/nginx.conf /etc/nginx
 sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 ```
 
-2. Copy the file `default.conf` to `/etc/nginx/sites-available`:
+3. Copy the file `default.conf` to `/etc/nginx/sites-available`:
 ```bash
 sudo cp /home/user/assignment3p2/default.conf /etc/nginx/sites-available
 ```
 >[!NOTE] 
 >Please replace **user** with your actual **username**!
 
-3. Create a symbolic link:
+4. Create a symbolic link:
 ```bash
 sudo ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
 ```
 
-4. Start and enable `nginx`:
+5. Start and enable `nginx`:
 ```bash
 sudo systemctl start nginx
 sudo systemctl enable nginx
 ```
 
-5. Check the status of the `nginx` services and test your `nginx` configuration:
+6. Check the status of the `nginx` services and test your `nginx` configuration:
 ```bash
 # Check status and verify if it's running
 sudo systemctl status nginx
@@ -159,6 +207,77 @@ sudo systemctl reload nginx
 > **Why is it important to use a separate server block file instead of modifying the main `nginx.conf` file?**
 > > Using a separate server block keeps configurations organized and easy to manage. IT reduces errors, simplifies troubleshooting, and makes backups and scaling easier compared to editing the main `nginx.conf` file.
 
+### What is in `nginx.conf`?
+This file is the main configuration file for the `nginx` web server. It contains directives for how `nginx` should run, handle network connections, and serve content. 
+```bash
+# Specifies the user under which nginx worker processes will run
+user webgen;
+# Auto adjust the number of worker processes based on availability
+worker_processes auto;
+# Binds worker processes to specific CPU cores for better performance
+worker_cpu_affinity auto;
+
+events {
+    multi_accept on;
+    worker_connections 1024;
+}
+
+# Configuration for handling HTTP requests and responses
+http {
+    charset utf-8;
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    server_tokens off;
+    log_not_found off;
+    types_hash_max_size 4096;
+    client_max_body_size 16M;
+
+    # MIME
+    include mime.types;
+    default_type application/octet-stream;
+
+    # logging
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log warn;
+
+    # load configs
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+```
+### What is in `default.conf`?
+```bash
+server {
+    # Listens on IPv4 for incoming HTTP connections on port 80
+    listen 80;
+    # Listens on IPv6 for incoming HTTP connection on port 80
+    listen [::]:80;
+    
+    # Default server block where _ matches all domain names
+    server_name _;
+    
+    # Sets the root directory for the web server's HTML
+    root /var/lib/webgen/HTML/;
+    # Specifies the default file to serve when accessing the root directory
+    index index.html;
+    # Location block for the root directory
+	location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Sets up the '/documents' directory
+    location /documents { 
+        # Sets the root directory to '/var/lib/webgen'
+        root /var/lib/webgen;       
+        autoindex on;                # Enables the directory listing
+        autoindex_exact_size off;    # Shows file sizes, human-readable
+        autoindex_localtime on;      # Displays file timestamps
+    }
+
+
+}
+```
 ---
 ## Setting up `ufw`
 1.  Enable and start the `ufw.service`:
@@ -168,7 +287,7 @@ sudo systemctl enable --now ufw.service
 >[!Note]
 >You may need to reboot your system before proceeding, please run the command `sudo reboot`
 
-1. Allow SSH connection and limit the rate to our firewall:
+2. Allow SSH connection and limit the rate to our firewall:
 ```bash
 sudo ufw allow ssh
 sudo ufw limit ssh
