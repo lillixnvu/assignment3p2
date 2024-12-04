@@ -114,7 +114,7 @@ journalctl -u generate_index.timer
 sudo systemctl start generate_index.service
 ```
 ### What does `generate_index.timer` do?
-The `.timer` file is used in relation with a `.service` file in `systemd` to schedule and trigger a specific service at a specific time. The whole purpose is to run the `generate_index.service` at a specified time.
+The whole purpose is to run the `generate_index.service` at a specified time.
 ```bash
 [Unit]
 # Brief description of the timer's purpose
@@ -207,7 +207,7 @@ sudo systemctl reload nginx
 > **Why is it important to use a separate server block file instead of modifying the main `nginx.conf` file?**
 > > Using a separate server block keeps configurations organized and easy to manage. IT reduces errors, simplifies troubleshooting, and makes backups and scaling easier compared to editing the main `nginx.conf` file.
 
-### What is in `nginx.conf`?
+### What is in `nginx.conf`? 
 This file is the main configuration file for the `nginx` web server. It contains directives for how `nginx` should run, handle network connections, and serve content. 
 ```bash
 # Specifies the user under which nginx worker processes will run
