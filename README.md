@@ -1,3 +1,4 @@
+# Assignment3p2
 ## Introduction
 Welcome to my Bash scripting project! This guide will walk you on how to generate a static `index.html` file containing your system's information. The script will be scheduled to run daily at 05:00 using a `systemd` service and timer. The generated HTML file will be served by an nginx web server, with  security provided by a firewall configured using `ufw`. Additionally, we will set up two servers and integrate them with a load balancer to optimize traffic distribution.
 
